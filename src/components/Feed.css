@@ -1,0 +1,47 @@
+.feed {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .feed .problem-card {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  
+  .problem-card .card {
+    width: 100%;
+  }
+  
+  .problem-card .card-title {
+    font-size: 20px;
+    font-weight: bold;
+  }
+  
+  .problem-card .card-subtitle {
+    font-size: 14px;
+    color: gray;
+  }
+  
+  .problem-card .card-text {
+    font-size: 16px;
+  }
+  
+  .problem-card .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .problem-card .btn {
+    margin-right: 10px;
+  }
+  
+  .problem-card .badge {
+    font-size: 14px;
+  }
+  

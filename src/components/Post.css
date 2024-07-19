@@ -1,0 +1,51 @@
+
+
+.vote-btn {
+  transition: all 0.2s ease-in-out;
+}
+
+.vote-btn:hover {
+  background-color: #e6f7ff;
+  transform: scale(1.1);
+}
+
+.edit-btn {
+  transition: all 0.2s ease-in-out;
+}
+
+.edit-btn:hover {
+  background-color: #fff3cd;
+  transform: scale(1.1);
+}
+
+.comment-section {
+  transition: all 0.2s ease-in-out;
+}
+
+.comment-section .btn:hover {
+  background-color: #e2e3e5;
+  transform: scale(1.1);
+}
+
+.comment-section textarea {
+  transition: all 0.2s ease-in-out;
+}
+
+.comment-section textarea:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+.comment-section .btn-primary {
+  transition: all 0.2s ease-in-out;
+}
+
+.comment-section .btn-primary:hover {
+  background-color: #0056b3;
+  transform: scale(1.1);
+}
+
+.comment-section .btn-link:hover {
+  text-decoration: underline;
+  transform: scale(1.1);
+}
