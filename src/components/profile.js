@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "./firebase";
 import { collection, getDocs, query, updateDoc, doc, deleteDoc, getDoc } from "firebase/firestore";
-import { Button, Modal, Form, Container, Row, Col, Navbar, Nav, InputGroup, Card } from "react-bootstrap";
-import { FaTrash, FaEdit, FaShare } from "react-icons/fa";
+import { Button, Modal, Form, Container, Row, Col, Navbar, Nav, InputGroup, Spinner } from "react-bootstrap";
+import { FaUserEdit, FaSignOutAlt, FaCamera } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import ProblemCard from "./ProblemCard";
 
@@ -10,87 +10,99 @@ function Profile() {
   const [problems, setProblems] = useState([]);
   const [user, setUser] = useState(null);
   const [editCommentData, setEditCommentData] = useState({ problemId: null, commentIndex: null, text: "" });
-  const [commentsLimit, setCommentsLimit] = useState(3); // Limit initial comments displayed
+  const [commentsLimit, setCommentsLimit] = useState(3);
   const [shareModalShow, setShareModalShow] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [bio, setBio] = useState("");
-  const [bioInput, setBioInput] = useState("");
   const [bioModalShow, setBioModalShow] = useState(false);
+  const [bioInput, setBioInput] = useState("");
   const [userDetails, setUserDetails] = useState(null);
   const [profilePictureModalShow, setProfilePictureModalShow] = useState(false);
   const [profilePictureInput, setProfilePictureInput] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    auth.onAuthStateChanged((user) => setUser(user));
-  }, []);
-
-  useEffect(() => {
-    fetchProblems();
-  }, []);
-
-  const fetchUserData = async () => {
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        const docRef = doc(db, "Users", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserDetails(docSnap.data());
-          fetchProblems(user.email);
-        } else {
-          console.log("No such document!");
-        }
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        fetchUserData(currentUser);
       } else {
-        console.log("User is not logged in");
+        setLoading(false);
       }
     });
+    
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchProblems();
+    }
+  }, [user]);
+
+  const fetchUserData = async (currentUser) => {
+    try {
+      const docRef = doc(db, "Users", currentUser.uid);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        setUserDetails(userData);
+        setBioInput(userData.bio || "");
+        setProfilePictureInput(userData.profilePicture || "");
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      setLoading(false);
+    }
   };
 
   const fetchProblems = async () => {
-    const q = query(collection(db, "Problems"));
-    const querySnapshot = await getDocs(q);
-    const problemsArray = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    setProblems(problemsArray);
+    try {
+      setLoading(true);
+      const q = query(collection(db, "Problems"));
+      const querySnapshot = await getDocs(q);
+      const problemsArray = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setProblems(problemsArray);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching problems:", error);
+      setLoading(false);
+    }
   };
 
   const handleVote = async (problemId, type) => {
     try {
       const problemRef = doc(db, "Problems", problemId);
       const problemIndex = problems.findIndex((p) => p.id === problemId);
-      const updatedProblems = [...problems]; // Create a copy of problems state array
+      const updatedProblems = [...problems];
 
-      // Check if user has already voted
       if (type === "upvote" && !updatedProblems[problemIndex].hasUpvoted) {
-        // Increase upvotes and mark as hasUpvoted
         updatedProblems[problemIndex].upvotes++;
         updatedProblems[problemIndex].hasUpvoted = true;
 
-        // Decrease downvotes if previously downvoted
         if (updatedProblems[problemIndex].hasDownvoted) {
           updatedProblems[problemIndex].downvotes--;
           updatedProblems[problemIndex].hasDownvoted = false;
         }
       } else if (type === "downvote" && !updatedProblems[problemIndex].hasDownvoted) {
-        // Increase downvotes and mark as hasDownvoted
         updatedProblems[problemIndex].downvotes++;
         updatedProblems[problemIndex].hasDownvoted = true;
 
-        // Decrease upvotes if previously upvoted
         if (updatedProblems[problemIndex].hasUpvoted) {
           updatedProblems[problemIndex].upvotes--;
           updatedProblems[problemIndex].hasUpvoted = false;
         }
       } else if (type === "upvote" && updatedProblems[problemIndex].hasUpvoted) {
-        // Undo upvote
         updatedProblems[problemIndex].upvotes--;
         updatedProblems[problemIndex].hasUpvoted = false;
       } else if (type === "downvote" && updatedProblems[problemIndex].hasDownvoted) {
-        // Undo downvote
         updatedProblems[problemIndex].downvotes--;
         updatedProblems[problemIndex].hasDownvoted = false;
       }
 
-      // Update the problem in Firestore
       await updateDoc(problemRef, {
         upvotes: updatedProblems[problemIndex].upvotes,
         downvotes: updatedProblems[problemIndex].downvotes,
@@ -98,7 +110,6 @@ function Profile() {
         hasDownvoted: updatedProblems[problemIndex].hasDownvoted,
       });
 
-      // Update state with the modified problems array
       setProblems(updatedProblems);
     } catch (error) {
       console.error("Error updating votes: ", error.message);
@@ -109,7 +120,7 @@ function Profile() {
     try {
       const problemRef = doc(db, "Problems", problemId);
       await updateDoc(problemRef, updatedProblem);
-      fetchProblems(); // Refresh the list of problems
+      fetchProblems();
     } catch (error) {
       console.error("Error editing problem: ", error.message);
     }
@@ -126,24 +137,30 @@ function Profile() {
 
   const handleAddComment = async (problemId, commentText) => {
     try {
-      const user = auth.currentUser;
+      if (!user) return;
+      
       const comment = {
         text: commentText,
         author: user.email,
-        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), // Format date as "7 July 2024"
+        date: new Date().toLocaleDateString('en-GB', { 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric' 
+        }),
         upvotes: 0,
         downvotes: 0,
-        relevanceScore: 0
+        relevanceScore: 0,
+        votes: {}
       };
+      
       const problemRef = doc(db, "Problems", problemId);
       const problemSnapshot = await getDoc(problemRef);
+      
       if (problemSnapshot.exists()) {
         const comments = problemSnapshot.data().comments || [];
         comments.push(comment);
         await updateDoc(problemRef, { comments });
         fetchProblems();
-      } else {
-        console.error("Problem document not found");
       }
     } catch (error) {
       console.error("Error adding comment: ", error.message);
@@ -154,14 +171,13 @@ function Profile() {
     try {
       const problemRef = doc(db, "Problems", editCommentData.problemId);
       const problemSnapshot = await getDoc(problemRef);
+      
       if (problemSnapshot.exists()) {
         let comments = problemSnapshot.data().comments || [];
         comments[editCommentData.commentIndex].text = editCommentData.text;
         await updateDoc(problemRef, { comments });
         setEditCommentData({ problemId: null, commentIndex: null, text: "" });
         fetchProblems();
-      } else {
-        console.error("Problem document not found");
       }
     } catch (error) {
       console.error("Error editing comment: ", error.message);
@@ -172,13 +188,12 @@ function Profile() {
     try {
       const problemRef = doc(db, "Problems", problemId);
       const problemSnapshot = await getDoc(problemRef);
+      
       if (problemSnapshot.exists()) {
         let comments = problemSnapshot.data().comments || [];
         comments.splice(commentIndex, 1);
         await updateDoc(problemRef, { comments });
         fetchProblems();
-      } else {
-        console.error("Problem document not found");
       }
     } catch (error) {
       console.error("Error deleting comment: ", error.message);
@@ -187,28 +202,22 @@ function Profile() {
 
   const handleCommentVote = async (problemId, commentIndex, type) => {
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        console.error("User is not logged in");
-        return;
-      }
-  
+      if (!user) return;
+      
       const problemRef = doc(db, "Problems", problemId);
       const problemSnapshot = await getDoc(problemRef);
-  
+      
       if (problemSnapshot.exists()) {
         const problemData = problemSnapshot.data();
         const comments = [...problemData.comments];
         let comment = comments[commentIndex];
-  
-        // Initialize voting data if it doesn't exist
+        
         if (!comment.votes) {
           comment.votes = {};
         }
-  
-        // Check if the user has already voted
+        
         const userVote = comment.votes[user.uid] || { upvoted: false, downvoted: false };
-  
+        
         if (type === "upvote" && !userVote.upvoted) {
           if (userVote.downvoted) {
             comment.downvotes--;
@@ -224,39 +233,27 @@ function Profile() {
           comment.downvotes++;
           userVote.downvoted = true;
         } else if (type === "upvote" && userVote.upvoted) {
-          // Undo upvote
           comment.upvotes--;
           userVote.upvoted = false;
         } else if (type === "downvote" && userVote.downvoted) {
-          // Undo downvote
           comment.downvotes--;
           userVote.downvoted = false;
         }
-  
-        // Update the user's vote in the comment
+        
         comment.votes[user.uid] = userVote;
-  
-        // Calculate relevance score (example calculation)
         comment.relevanceScore = comment.upvotes - comment.downvotes;
-  
         comments[commentIndex] = comment;
-  
-        await updateDoc(problemRef, {
-          comments: comments
-        });
-  
+        
+        await updateDoc(problemRef, { comments });
         fetchProblems();
-      } else {
-        console.error("Problem document not found");
       }
     } catch (error) {
       console.error("Error updating comment votes: ", error.message);
     }
   };
-  
 
   const handleReadMore = () => {
-    setCommentsLimit(commentsLimit + 3); // Increase comments limit by 3 when "Read More" is clicked
+    setCommentsLimit(commentsLimit + 3);
   };
 
   const handleShare = (problemId) => {
@@ -266,38 +263,28 @@ function Profile() {
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(shareLink).then(() => {
-      console.log("Link copied to clipboard!");
-    }).catch((err) => {
-      console.error("Error copying link: ", err.message);
-    });
+    navigator.clipboard.writeText(shareLink)
+      .then(() => alert("Link copied to clipboard!"))
+      .catch(err => console.error("Error copying link: ", err.message));
   };
 
   const handleLogout = async () => {
     try {
       await auth.signOut();
       window.location.href = "/login";
-      console.log("User logged out successfully!");
     } catch (error) {
       console.error("Error logging out:", error.message);
     }
   };
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
   const handleBioSave = async () => {
     try {
-      const user = auth.currentUser;
-      if (user) {
-        const userRef = doc(db, "Users", user.uid);
-        await updateDoc(userRef, { bio: bioInput });
-        setUserDetails({ ...userDetails, bio: bioInput });
-        setBioModalShow(false);
-      } else {
-        console.error("User is not logged in");
-      }
+      if (!user) return;
+      
+      const userRef = doc(db, "Users", user.uid);
+      await updateDoc(userRef, { bio: bioInput });
+      setUserDetails({ ...userDetails, bio: bioInput });
+      setBioModalShow(false);
     } catch (error) {
       console.error("Error saving bio: ", error.message);
     }
@@ -305,22 +292,24 @@ function Profile() {
 
   const handleProfilePictureSave = async () => {
     try {
-      const user = auth.currentUser;
-      if (user) {
-        const userRef = doc(db, "Users", user.uid);
-        await updateDoc(userRef, { profilePicture: profilePictureInput });
-        setUserDetails({ ...userDetails, profilePicture: profilePictureInput });
-        setProfilePictureModalShow(false);
-      } else {
-        console.error("User is not logged in");
-      }
+      if (!user) return;
+      
+      const userRef = doc(db, "Users", user.uid);
+      await updateDoc(userRef, { profilePicture: profilePictureInput });
+      setUserDetails({ ...userDetails, profilePicture: profilePictureInput });
+      setProfilePictureModalShow(false);
     } catch (error) {
       console.error("Error saving profile picture: ", error.message);
     }
   };
 
+  const userProblems = problems.filter(problem => 
+    problem.author === (user ? user.email : '')
+  );
+
   return (
-    <div>
+    <div className="bg-light min-vh-100">
+      {/* Navigation Bar */}
       <Navbar bg="light" expand="lg">
         <Navbar.Brand as={Link} to="/">PrathiVidhi</Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
@@ -336,74 +325,132 @@ function Profile() {
         </Navbar.Collapse>
       </Navbar>
 
-
       <Container>
-        <Row className="justify-content-md-center mt-5">
-          <Col md="8">
-            {userDetails ? (
-              <div className="card shadow-sm p-3 mb-5 bg-white rounded">
-                <div className="card-body text-center">
-                  <img
-                    src={userDetails.photo || "default-profile.png"}
-                    className="rounded-circle mb-3"
-                    alt="Profile"
-                    style={{ width: "150px", height: "150px", objectFit: "cover" }}
-                  />
-                  <h3 className="card-title">Welcome, {userDetails.firstName}</h3>
-                  <p className="card-text">{userDetails.email}</p>
-                  <p className="card-text">{userDetails.bio || "No bio available"}</p>
-                  <div className="d-flex justify-content-around mb-4">
-                  <Button variant="primary" className="mt-3" onClick={() => setBioModalShow(true)}>
-                    Edit Bio
-                  </Button>
-                  <Button variant="primary" className="mt-3 ml-2" onClick={() => setProfilePictureModalShow(true)}>
-                    Change Profile Picture
-                  </Button>
-                  <Button variant="danger" className="mt-3 ml-2" onClick={handleLogout}>
-                    Logout
-                  </Button>
+        {loading ? (
+          <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
+            <Spinner animation="border" variant="primary" />
+          </div>
+        ) : (
+          <>
+            {/* User Profile Card */}
+            <Row className="justify-content-center mb-5">
+              <Col lg={8} md={10}>
+                {userDetails ? (
+                  <div className="bg-white rounded-3 shadow-sm p-4">
+                    <Row>
+                      <Col md={4} className="text-center mb-4 mb-md-0">
+                        <div className="position-relative d-inline-block">
+                          <img
+                            src={userDetails.profilePicture || userDetails.photo || "/default-profile.png"}
+                            className="rounded-circle mb-3 border shadow-sm"
+                            alt="Profile"
+                            style={{ width: "160px", height: "160px", objectFit: "cover" }}
+                          />
+                          <Button 
+                            variant="light" 
+                            size="sm" 
+                            className="position-absolute bottom-0 end-0 rounded-circle p-2 shadow-sm"
+                            onClick={() => setProfilePictureModalShow(true)}
+                          >
+                            <FaCamera />
+                          </Button>
+                        </div>
+                      </Col>
+                      <Col md={8}>
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                          <h2 className="mb-0">{userDetails.firstName} {userDetails.lastName}</h2>
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm" 
+                            onClick={handleLogout}
+                            className="d-flex align-items-center gap-2"
+                          >
+                            <FaSignOutAlt /> Logout
+                          </Button>
+                        </div>
+                        <p className="text-muted mb-3">{userDetails.email}</p>
+                        <div className="border-top pt-3 mt-2">
+                          <div className="d-flex justify-content-between align-items-start">
+                            <div>
+                              <h6 className="mb-2">Bio</h6>
+                              <p className="mb-0">{userDetails.bio || "No bio available"}</p>
+                            </div>
+                            <Button 
+                              variant="outline-primary" 
+                              size="sm" 
+                              onClick={() => setBioModalShow(true)}
+                              className="d-flex align-items-center gap-2"
+                            >
+                              <FaUserEdit /> Edit
+                            </Button>
+                          </div>
+                        </div>
+                      </Col>
+                    </Row>
                   </div>
-                  
+                ) : (
+                  <div className="text-center p-5 bg-white rounded-3 shadow-sm">
+                    <p>User not found or not logged in</p>
+                    <Button as={Link} to="/login" variant="primary">
+                      Login
+                    </Button>
+                  </div>
+                )}
+              </Col>
+            </Row>
+
+            {/* User Problems */}
+            <Row className="mb-5">
+              <Col lg={12}>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h3 className="mb-0">My Problems</h3>
+                  <span className="badge bg-primary rounded-pill">
+                    {userProblems.length} {userProblems.length === 1 ? 'Problem' : 'Problems'}
+                  </span>
                 </div>
-              </div>
-            ) : (
-              <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
-                <div className="spinner-border text-primary" role="status">
-                  <span className="sr-only">Loading...</span>
-                </div>
-              </div>
-            )}
-          </Col>
-        </Row>
-        <Row>
-          <Col md="12">
-            <h2>My Problems</h2>
-            {problems.filter(problem => problem.author === (user ? user.email : '')).map((problem) => (
-              <ProblemCard
-              problem={problem}
-              user={user}
-              handleVote={handleVote}
-              handleDelete={handleDelete}
-              handleEditProblem={handleEditProblem} // Pass the function here
-              handleEditComment={handleEditComment}
-              handleAddComment={handleAddComment}
-              handleCommentVote={handleCommentVote}
-              handleDeleteComment={handleDeleteComment}
-              handleShare={handleShare}
-              editCommentData={editCommentData}
-              setEditCommentData={setEditCommentData}
-              commentsLimit={commentsLimit}
-              handleReadMore={handleReadMore}
-              setProblems={setProblems}
-              problems={problems}
-            />
-            
-            ))}
-          </Col>
-        </Row>
+
+                {userProblems.length > 0 ? (
+                  userProblems.map((problem) => (
+                    <div className="mb-4" key={problem.id}>
+                      <ProblemCard
+                        problem={problem}
+                        user={user}
+                        handleVote={handleVote}
+                        handleDelete={handleDelete}
+                        handleEditProblem={handleEditProblem}
+                        handleEditComment={handleEditComment}
+                        handleAddComment={handleAddComment}
+                        handleCommentVote={handleCommentVote}
+                        handleDeleteComment={handleDeleteComment}
+                        handleShare={handleShare}
+                        editCommentData={editCommentData}
+                        setEditCommentData={setEditCommentData}
+                        commentsLimit={commentsLimit}
+                        handleReadMore={handleReadMore}
+                        setProblems={setProblems}
+                        problems={problems}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center p-5 bg-white rounded-3 shadow-sm">
+                    <p className="mb-3 text-muted">You haven't created any problems yet</p>
+                    <Button 
+                      variant="outline-primary" 
+                      onClick={() => setShowModal(true)}
+                    >
+                      Create Your First Problem
+                    </Button>
+                  </div>
+                )}
+              </Col>
+            </Row>
+          </>
+        )}
       </Container>
 
-      <Modal show={shareModalShow} onHide={() => setShareModalShow(false)}>
+      {/* Share Modal */}
+      <Modal show={shareModalShow} onHide={() => setShareModalShow(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Share Problem</Modal.Title>
         </Modal.Header>
@@ -414,7 +461,7 @@ function Profile() {
               value={shareLink}
               readOnly
             />
-            <Button variant="outline-secondary" onClick={copyToClipboard}>
+            <Button variant="primary" onClick={copyToClipboard}>
               Copy Link
             </Button>
           </InputGroup>
@@ -426,26 +473,28 @@ function Profile() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={bioModalShow} onHide={() => setBioModalShow(false)}>
+      {/* Bio Edit Modal */}
+      <Modal show={bioModalShow} onHide={() => setBioModalShow(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Edit Bio</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group controlId="formBio">
-              <Form.Label>Bio</Form.Label>
+              <Form.Label>About you</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={3}
+                rows={4}
                 value={bioInput}
                 onChange={(e) => setBioInput(e.target.value)}
+                placeholder="Tell us about yourself..."
               />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setBioModalShow(false)}>
-            Close
+            Cancel
           </Button>
           <Button variant="primary" onClick={handleBioSave}>
             Save Changes
@@ -453,7 +502,8 @@ function Profile() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={profilePictureModalShow} onHide={() => setProfilePictureModalShow(false)}>
+      {/* Profile Picture Modal */}
+      <Modal show={profilePictureModalShow} onHide={() => setProfilePictureModalShow(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Change Profile Picture</Modal.Title>
         </Modal.Header>
@@ -465,13 +515,29 @@ function Profile() {
                 type="text"
                 value={profilePictureInput}
                 onChange={(e) => setProfilePictureInput(e.target.value)}
+                placeholder="Enter URL of your profile picture"
               />
+              {profilePictureInput && (
+                <div className="mt-3 text-center">
+                  <p className="mb-2">Preview:</p>
+                  <img 
+                    src={profilePictureInput} 
+                    alt="Profile preview" 
+                    className="rounded-circle"
+                    style={{ width: "100px", height: "100px", objectFit: "cover" }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/default-profile.png";
+                    }}
+                  />
+                </div>
+              )}
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setProfilePictureModalShow(false)}>
-            Close
+            Cancel
           </Button>
           <Button variant="primary" onClick={handleProfilePictureSave}>
             Save Changes

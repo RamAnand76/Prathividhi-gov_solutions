@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Button, Card, Badge, Modal, Form } from "react-bootstrap";
-import { FaThumbsUp, FaThumbsDown, FaTrash, FaEdit, FaShare, FaComments } from "react-icons/fa";
+import { Button, Card, Badge, Modal, Form, Dropdown } from "react-bootstrap";
+import { FaThumbsUp, FaThumbsDown, FaTrash, FaEdit, FaShare, FaComments, FaEllipsisV, FaWrench } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
 const ProblemCard = ({
@@ -43,102 +43,140 @@ const ProblemCard = ({
 
   return (
     <Card key={problem.id} className="mb-4 shadow-sm">
-      <Card.Body>
+      <Card.Body className="px-4 py-3">
+        <style>
+          {`
+            @media (max-width: 768px) {
+              .interaction-row {
+                flex-direction: column-reverse;
+                align-items: center;
+                text-align: center;
+              }
+              .button-group {
+                margin-top: 10px;
+              }
+            }
+            @media (min-width: 769px) {
+              .interaction-row {
+                justify-content: space-between;
+              }
+            }
+          `}
+        </style>
+
         {isEditing ? (
-          <Form onSubmit={handleEditSubmit}>
+          <Form onSubmit={handleEditSubmit} className="my-2">
             <Form.Group controlId={`editTitle-${problem.id}`}>
-              <Form.Label>Title</Form.Label>
+              <Form.Label className="fw-bold">Title</Form.Label>
               <Form.Control
                 type="text"
                 name="title"
                 value={editFormData.title}
                 onChange={handleEditChange}
+                className="mb-2"
               />
             </Form.Group>
-            <Form.Group controlId={`editDescription-${problem.id}`} className="mt-2">
-              <Form.Label>Description</Form.Label>
+            <Form.Group controlId={`editDescription-${problem.id}`}>
+              <Form.Label className="fw-bold">Description</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={3}
                 name="description"
                 value={editFormData.description}
                 onChange={handleEditChange}
+                className="mb-3"
               />
             </Form.Group>
-            <Button variant="primary" type="submit" className="mt-3">
-              Save
-            </Button>
-            <Button variant="secondary" onClick={() => setIsEditing(false)} className="mt-3 ms-2">
-              Cancel
-            </Button>
+            <div className="d-flex gap-2 justify-content-center">
+              <Button variant="primary" type="submit">
+                Save
+              </Button>
+              <Button variant="secondary" onClick={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+            </div>
           </Form>
         ) : (
           <>
-            <Card.Title className="d-flex justify-content-between">
-              <Link to={`/problem/${problem.id}`}>{problem.title}</Link>
-              <small className="text-muted">{problem.date}</small>
-            </Card.Title>
+            <div className="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
+              <div>
+                <Card.Title className="mb-1">
+                  <Link to={`/problem/${problem.id}`} className="text-decoration-none">{problem.title}</Link>
+                </Card.Title>
+                <small className="text-muted">{problem.date}</small>
+              </div>
+              {user && (
+                <Dropdown>
+                  <Dropdown.Toggle variant="outline-secondary" size="sm" id={`dropdown-${problem.id}`}>
+                    <FaEllipsisV />
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Item onClick={() => window.alert("Solve problem functionality")}>
+                      <FaWrench className="me-2" /> Solve
+                    </Dropdown.Item>
+                    {user.email === problem.author && (
+                      <>
+                        <Dropdown.Item onClick={() => setIsEditing(true)}>
+                          <FaEdit className="me-2" /> Edit
+                        </Dropdown.Item>
+                        <Dropdown.Item 
+                          onClick={() => handleDelete(problem.id)}
+                          className="text-danger"
+                        >
+                          <FaTrash className="me-2" /> Delete
+                        </Dropdown.Item>
+                      </>
+                    )}
+                  </Dropdown.Menu>
+                </Dropdown>
+              )}
+            </div>
             <Card.Subtitle className="mb-2 text-muted">Posted by {problem.author}</Card.Subtitle>
-            <Card.Text>{problem.description}</Card.Text>
+            <Card.Text className="my-3">{problem.description}</Card.Text>
           </>
         )}
 
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <div>
+        <div className="d-flex flex-wrap align-items-center interaction-row gap-2 mb-3">
+          <Badge pill bg="secondary" className="px-3 py-2">
+            Upvotes: {problem.upvotes} | Downvotes: {problem.downvotes}
+          </Badge>
+          <div className="d-flex align-items-center gap-2 flex-wrap button-group">
             <Button
               variant="outline-success"
-              className="me-2 vote-btn"
+              size="sm"
+              className="vote-btn d-flex align-items-center gap-1"
               onClick={() => handleVote(problem.id, "upvote")}
             >
-              <FaThumbsUp /> {problem.upvotes}
+              <FaThumbsUp /> <span>{problem.upvotes}</span>
             </Button>
             <Button
               variant="outline-danger"
-              className="vote-btn"
+              size="sm"
+              className="vote-btn d-flex align-items-center gap-1"
               onClick={() => handleVote(problem.id, "downvote")}
             >
-              <FaThumbsDown /> {problem.downvotes}
+              <FaThumbsDown /> <span>{problem.downvotes}</span>
             </Button>
+            <Button
+              variant="outline-primary"
+              size="sm"
+              className="d-flex align-items-center gap-1"
+              onClick={() => setShowComments(!showComments)}
+            >
+              <FaComments /> <span>{problem.comments?.length || 0}</span>
+            </Button>
+            {user && (
+              <Button 
+                variant="outline-primary" 
+                size="sm" 
+                onClick={() => handleShare(problem.id)}
+                className="d-flex align-items-center gap-1"
+              >
+                <FaShare /> Share
+              </Button>
+            )}
           </div>
-          <Badge pill bg="secondary">
-            Upvotes: {problem.upvotes} | Downvotes: {problem.downvotes}
-          </Badge>
-          {user && (
-            <div>
-              <Button variant="outline-info" size="sm" className="mr-2">
-                Solve
-              </Button>
-              {user.email === problem.author && (
-                <>
-                  <Button
-                    variant="outline-warning"
-                    size="sm"
-                    className="mr-2 edit-btn"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    <FaEdit />
-                  </Button>
-
-                  <Button variant="outline-danger" size="sm" onClick={() => handleDelete(problem.id)}>
-                    <FaTrash />
-                  </Button>
-                </>
-              )}
-              <Button variant="outline-primary" size="sm" onClick={() => handleShare(problem.id)}>
-                <FaShare />
-              </Button>
-            </div>
-          )}
         </div>
-
-        <Button
-          variant="outline-primary"
-          size="sm"
-          className="d-block mb-3"
-          onClick={() => setShowComments(!showComments)}
-        >
-          <FaComments /> {showComments ? "Hide Comments" : "Show Comments"}
-        </Button>
 
         {showComments && (
           <CommentSection
@@ -195,11 +233,11 @@ const ProblemCard = ({
           </Button>
         </Modal.Footer>
       </Modal>
-
     </Card>
   );
 };
 
+// CommentSection remains unchanged
 const CommentSection = ({
   problem,
   user,
@@ -214,90 +252,90 @@ const CommentSection = ({
   setProblems,
   problems
 }) => {
-  const problemURL = `/problems/${problem.id}/${encodeURIComponent(problem.title)}`;
   const [showAllComments, setShowAllComments] = useState(false);
-
   const visibleComments = showAllComments ? problem.comments : problem.comments.slice(0, commentsLimit);
 
   return (
-    <div className="comment-section" style={{ width: "100%" }}>
+    <div className="comment-section border-top pt-3" style={{ width: "100%" }}>
       {problem.comments && problem.comments.length > 0 ? (
         <>
           {visibleComments.map((comment, index) => (
-            <Card key={index} className="mb-2">
-              <Card.Body>
+            <Card key={index} className="mb-3 border-start border-4 border-light">
+              <Card.Body className="py-2 px-3">
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <div>
                     {comment.author === problem.author ? (
-                      <span className="text-info">Author</span>
+                      <span className="text-info fw-bold">Author</span>
                     ) : (
                       <span className="text-muted">{comment.author}</span>
                     )}
                   </div>
                   {comment.author === user?.email && (
-                    <div>
-                      <Button
-                        variant="link"
-                        className="text-primary"
-                        onClick={() =>
-                          setEditCommentData({
+                    <Dropdown align="end">
+                      <Dropdown.Toggle variant="link" size="sm" className="p-0" id={`comment-dropdown-${index}`}>
+                        <FaEllipsisV />
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item 
+                          onClick={() => setEditCommentData({
                             problemId: problem.id,
                             commentIndex: index,
                             text: comment.text,
-                          })
-                        }
-                      >
-                        <FaEdit /> Edit
-                      </Button>
-                      <Button
-                        variant="link"
-                        className="text-danger ms-2"
-                        onClick={() => handleDeleteComment(problem.id, index)}
-                      >
-                        <FaTrash /> Delete
-                      </Button>
-                    </div>
+                          })}
+                        >
+                          <FaEdit className="me-2" /> Edit
+                        </Dropdown.Item>
+                        <Dropdown.Item 
+                          className="text-danger"
+                          onClick={() => handleDeleteComment(problem.id, index)}
+                        >
+                          <FaTrash className="me-2" /> Delete
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
                   )}
                 </div>
-                <Card.Text>{comment.text}</Card.Text>
+                <Card.Text className="mb-3">{comment.text}</Card.Text>
                 <div className="d-flex justify-content-between align-items-center">
-                  <div>
+                  <div className="d-flex gap-2">
                     <Button
                       variant="outline-success"
-                      className="me-2 vote-btn"
+                      size="sm"
+                      className="vote-btn d-flex align-items-center gap-1"
                       onClick={() => handleCommentVote(problem.id, index, "upvote")}
                     >
-                      <FaThumbsUp /> {comment.upvotes}
+                      <FaThumbsUp /> <span>{comment.upvotes}</span>
                     </Button>
                     <Button
                       variant="outline-danger"
-                      className="vote-btn"
+                      size="sm"
+                      className="vote-btn d-flex align-items-center gap-1"
                       onClick={() => handleCommentVote(problem.id, index, "downvote")}
                     >
-                      <FaThumbsDown /> {comment.downvotes}
+                      <FaThumbsDown /> <span>{comment.downvotes}</span>
                     </Button>
                   </div>
-                  <Badge pill bg="secondary">
+                  <Badge pill bg="secondary" className="px-2 py-1">
                     Relevance Score: {comment.relevanceScore}
                   </Badge>
                 </div>
               </Card.Body>
             </Card>
           ))}
-          {problem.comments.length > commentsLimit && (
-            <Button variant="link" onClick={handleReadMore} className="text-primary">
+          {problem.comments.length > commentsLimit && !showAllComments && (
+            <Button variant="link" onClick={handleReadMore} className="text-primary p-0 mb-3">
               Read More...
             </Button>
           )}
         </>
       ) : (
-        <p>No comments yet.</p>
+        <p className="text-muted fst-italic">No comments yet.</p>
       )}
 
       <Button
         variant="outline-primary"
         size="sm"
-        className="d-block mt-2"
+        className="d-flex align-items-center gap-1 mb-3"
         onClick={() => setShowAllComments(!showAllComments)}
       >
         <FaComments /> {showAllComments ? "Hide Comments" : "Show All Comments"}
@@ -305,10 +343,10 @@ const CommentSection = ({
 
       <Form className="mt-3">
         <Form.Group controlId={`commentText-${problem.id}`}>
-          <Form.Label>Add a Comment</Form.Label>
+          <Form.Label className="fw-bold">Add a Comment</Form.Label>
           <Form.Control
             as="textarea"
-            rows={1}
+            rows={2}
             placeholder="Type your comment here..."
             value={problem.newComment || ""}
             onChange={(e) =>
@@ -318,11 +356,11 @@ const CommentSection = ({
                 )
               )
             }
+            className="mb-2"
           />
         </Form.Group>
         <Button
           variant="primary"
-          className="mt-2"
           onClick={() => {
             handleAddComment(problem.id, problem.newComment);
             setProblems(
@@ -338,6 +376,5 @@ const CommentSection = ({
     </div>
   );
 };
-
 
 export default ProblemCard;
