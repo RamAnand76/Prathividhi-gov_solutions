@@ -26,12 +26,14 @@ function SignInwithGoogle() {
   return (
     <div>
       <p className="continue-p">--Or continue with--</p>
-      <div
-        style={{ display: "flex", justifyContent: "center", cursor: "pointer" }}
+      <button
+        type="button"
+        className="google-signin"
         onClick={googleLogin}
       >
-        <img src={require("../google.png")} width={"60%"} alt="Google" />
-      </div>
+        <img src={require("../google.png")} alt="Google" />
+        Continue with Google
+      </button>
     </div>
   );
 }

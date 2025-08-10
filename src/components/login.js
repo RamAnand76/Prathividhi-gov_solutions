@@ -4,10 +4,13 @@ import { auth } from "./firebase";
 import { toast } from "react-toastify";
 import SignInwithGoogle from "./signInWithGoogle";
 import "../Auth.css";  // Import the CSS file for styling
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleError = (errorCode) => {
     switch (errorCode) {
@@ -24,6 +27,7 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("User logged in Successfully");
@@ -37,44 +41,75 @@ function Login() {
       toast.error(errorMessage, {
         position: "bottom-center",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="auth-container">
       <form onSubmit={handleSubmit} className="auth-form">
-        <h3 className="auth-title">Login</h3>
+        <h1 className="auth-title">Welcome back</h1>
+        <p className="auth-subtitle">Sign in to your account</p>
 
-        <div className="mb-3">
-          <label>Email address</label>
+        <div className="form-group">
+          <label htmlFor="email">Email address</label>
           <input
+            id="email"
             type="email"
             className="form-control"
             placeholder="Enter email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            required
           />
         </div>
 
-        <div className="mb-3">
-          <label>Password</label>
-          <input
-            type="password"
-            className="form-control"
-            placeholder="Enter password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+        <div className="form-group">
+          <label htmlFor="password">Password</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              className="form-control"
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{ paddingRight: '48px' }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '16px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#5f6368',
+                padding: '4px'
+              }}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
         </div>
 
-        <div className="d-grid">
-          <button type="submit" className="btn btn-primary">
-            Submit
-          </button>
-        </div>
+        <button 
+          type="submit" 
+          className="btn btn-primary"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Signing in...' : 'Sign in'}
+        </button>
+        
         <p className="forgot-password text-right">
-          New user <a href="/register">Register Here</a>
+          New user? <a href="/register">Create account</a>
         </p>
+        
         <SignInwithGoogle />
       </form>
     </div>
