@@ -1,3 +1,6 @@
+import React from "react";
+import { Button } from "@heroui/react";
+import { Icon } from "@iconify/react";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { toast } from "react-toastify";
@@ -23,16 +26,17 @@ function SignInwithGoogle() {
       }
     });
   }
+
   return (
-    <div>
-      <p className="continue-p">--Or continue with--</p>
-      <div
-        style={{ display: "flex", justifyContent: "center", cursor: "pointer" }}
-        onClick={googleLogin}
-      >
-        <img src={require("../google.png")} width={"60%"} alt="Google" />
-      </div>
-    </div>
+    <Button
+      startContent={<Icon icon="flat-color-icons:google" width={24} />}
+      variant="bordered"
+      className="w-full border-gray-300 hover:border-gray-400"
+      onClick={googleLogin}
+    >
+      Continue with Google
+    </Button>
   );
 }
+
 export default SignInwithGoogle;
